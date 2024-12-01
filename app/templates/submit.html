@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Submit Bot - {{ game_title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold mb-8">Submit Bot for {{ game_title }}</h1>
+        
+        <!-- Rules Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Game Rules</h2>
+            <div class="prose">
+                <h3 class="text-lg font-semibold mb-2">How it works:</h3>
+                <ol class="list-decimal pl-6 space-y-2">
+                    <li>Each bot starts with 100 copies in the pool</li>
+                    <li>In each round, bots are randomly paired (including self-pairing)</li>
+                    <li>Each pair plays multiple turns where they choose numbers between 0 and 5</li>
+                    <li>If the sum is ≤ 5, each bot earns points equal to their number</li>
+                    <li>If the sum is > 5, neither bot earns points</li>
+                    <li>A bot's share of total points determines its copies in the next round</li>
+                </ol>
+                
+                <h3 class="text-lg font-semibold mt-6 mb-2">Bot Requirements:</h3>
+                <ul class="list-disc pl-6 space-y-2">
+                    <li>Must implement get_move(history, opponent_history, round_number)
+                        <ul class="list-disc pl-6 mt-2 text-sm text-gray-600">
+                            <li>history: List of your previous moves in this game</li>
+                            <li>opponent_history: List of opponent's previous moves</li>
+                            <li>round_number: Current round number (starting from 0)</li>
+                            <li>Must return an integer between 0 and 5</li>
+                        </ul>
+                    </li>
+                    <li>Must implement reset()
+                        <ul class="list-disc pl-6 mt-2 text-sm text-gray-600">
+                            <li>Called before each new game</li>
+                            <li>Use this to clear any stored state</li>
+                        </ul>
+                    </li>
+                    <li>Allowed built-in functions:
+                        <ul class="list-disc pl-6 mt-2 text-sm text-gray-600">
+                            <li>range, len, int, float, list, tuple, dict</li>
+                            <li>set, sum, min, max, sorted, round, abs</li>
+                            <li>all, any, enumerate, zip, map, filter</li>
+                        </ul>
+                    </li>
+                    <li class="text-red-600">Restrictions:
+                        <ul class="list-disc pl-6 mt-2 text-sm text-red-600">
+                            <li>No imports allowed</li>
+                            <li>No file system or network access</li>
+                            <li>Limited to 1000 characters</li>
+                            <li>Must respond within 0.1 seconds</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Submission Form -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Submit Your Bot</h2>
+            
+            <!-- Error/Success Messages Container -->
+            <div id="messages" class="mb-4"></div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Bot Name</label>
+                <input type="text" id="botName" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
+                              focus:ring-blue-500 focus:border-blue-500 p-2">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Bot Code</label>
+                <div id="editor" class="h-96 rounded-md border border-gray-300">class Bot:
+    def get_move(self, history, opponent_history, round_number):
+        # Your code here
+        # history: List of your previous moves in this game
+        # opponent_history: List of opponent's previous moves
+        # round_number: Current round number (starting from 0)
+        # Must return an integer between 0 and 5
+        return 2  # Example: always return 2
+        
+    def reset(self):
+        # Reset any stored state
+        pass</div>
+            </div>
+            
+            <button onclick="submitBot()" 
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-200">
+                Submit Bot
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Set up Ace editor
+        const editor = ace.edit("editor");
+        editor.setTheme("ace/theme/monokai");
+        editor.session.setMode("ace/mode/python");
+        editor.setOptions({
+            fontSize: "14px",
+            showPrintMargin: false,
+            highlightActiveLine: true,
+            tabSize: 4,
+            useSoftTabs: true
+        });
+
+        function showError(message) {
+            const messagesDiv = document.getElementById('messages');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded relative';
+            alertDiv.innerHTML = `
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" 
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" 
+                                  clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium">Submission Error</h3>
+                        <div class="mt-2 text-sm whitespace-pre-wrap">${message}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Add close button
+            const closeButton = document.createElement('button');
+            closeButton.className = 'absolute top-0 right-0 p-4';
+            closeButton.innerHTML = '×';
+            closeButton.onclick = () => alertDiv.remove();
+            alertDiv.appendChild(closeButton);
+            
+            messagesDiv.appendChild(alertDiv);
+            
+            // Auto-remove after 20 seconds
+            setTimeout(() => alertDiv.remove(), 20000);
+        }
+
+        function showSuccess(message) {
+            const messagesDiv = document.getElementById('messages');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded relative';
+            alertDiv.innerHTML = `
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" 
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                                  clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium">Success!</h3>
+                        <div class="mt-2 text-sm">${message}</div>
+                    </div>
+                </div>
+            `;
+            messagesDiv.appendChild(alertDiv);
+        }
+
+        async function submitBot() {
+    const botName = document.getElementById('botName').value.trim();
+    if (!botName) {
+        showError('Please enter a bot name');
+        return;
+    }
+    
+    const botCode = editor.getValue();
+    if (!botCode.includes('class Bot:')) {
+        showError('Your code must contain a class named "Bot"');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/submit/{{ invite_code }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                bot_name: botName,
+                bot_code: botCode
+            })
+        });
+        
+        let data;
+        try {
+            data = await response.json();
+            console.log("Server response:", data);  // Log the full response
+        } catch (parseError) {
+            console.error("Parse error:", parseError);
+            showError("Failed to parse server response. Please try again.");
+            return;
+        }
+        
+        if (data.success) {
+            showSuccess('Bot submitted successfully! You can close this window.');
+            editor.setReadOnly(true);
+            document.getElementById('botName').disabled = true;
+            document.querySelector('button').disabled = true;
+        } else {
+            console.error("Submission failed:", data);  // Log the error data
+            let errorMessage = data.errors || "An unknown error occurred";
+            const errorType = data.error_type || "unknown";
+
+            if (errorType === 'validation') {
+                if (typeof errorMessage === 'string') {
+                    if (errorMessage.includes('missing parameters')) {
+                        errorMessage = 'Method Parameter Error:\n\n' +
+                                    'Your get_move method is missing required parameters.\n' +
+                                    'Correct format is:\n' +
+                                    'def get_move(self, history, opponent_history, round_number)';
+                    } else if (errorMessage.includes('too many parameters')) {
+                        errorMessage = 'Method Parameter Error:\n\n' +
+                                    'Your get_move method has extra parameters.\n' +
+                                    'Correct format is:\n' +
+                                    'def get_move(self, history, opponent_history, round_number)';
+                    } else if (errorMessage.includes('must return a number')) {
+                        errorMessage = 'Return Type Error:\n\n' +
+                                    'Your get_move method must return a number.\n' +
+                                    'Make sure you have a return statement that returns an integer between 0 and 5.';
+                    } else if (errorMessage.includes('between 0 and 5')) {
+                        errorMessage = 'Invalid Return Value:\n\n' +
+                                    'Your get_move method must return a number between 0 and 5.\n' +
+                                    'Your bot returned a number outside this range.';
+                    }
+                }
+            } else if (errorType === 'format') {
+                errorMessage = 'Invalid submission format. Please try again.';
+            } else if (errorType === 'unexpected') {
+                errorMessage = 'Server error: ' + errorMessage;
+                console.error("Unexpected error details:", data);
+            }
+            
+            showError(errorMessage);
+        }
+    } catch (error) {
+        console.error("Network error:", error);
+        showError('Connection error. Please check your internet connection and try again.\n\n' +
+                 'Technical details: ' + error.message);
+    }
+}
+    </script>
+</body>
+</html>

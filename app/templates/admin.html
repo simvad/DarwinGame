@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Darwin Game Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold mb-8">Game Admin</h1>
+        
+        <!-- Game Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-bold mb-4">Create New Game</h2>
+            <form id="createGameForm" class="space-y-4" onsubmit="createGame(event)">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" name="title" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Min Rounds</label>
+                        <input type="number" name="min_rounds" value="100" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Max Rounds</label>
+                        <input type="number" name="max_rounds" value="200" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Min Turns</label>
+                        <input type="number" name="min_turns" value="50" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Max Turns</label>
+                        <input type="number" name="max_turns" value="150" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <button type="submit" 
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-200">
+                    Create Game
+                </button>
+            </form>
+        </div>
+        
+        <!-- Games List -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="gamesList">
+            {% for game in games.values() %}
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-2">{{ game.title }}</h3>
+                <p class="text-gray-600 mb-4">
+                    Bots: <span class="font-medium">{{ game.bots|length }}</span>
+                </p>
+                <p class="text-gray-600 mb-4">
+                    Rounds: {{ game.min_rounds }}-{{ game.max_rounds }}<br>
+                    Turns: {{ game.min_turns }}-{{ game.max_turns }}
+                </p>
+                {% if not game.started %}
+                <div class="space-y-2">
+                    <button onclick="createInvite('{{ game.id }}')" 
+                            class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition duration-200">
+                        Generate Invite Link
+                    </button>
+                    {% if game.bots|length >= 2 %}
+                    <button onclick="startGame('{{ game.id }}')"
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-200">
+                        Start Game
+                    </button>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="space-y-2">
+                    <p class="text-green-600 font-medium">Game in progress</p>
+                    <button onclick="viewGame('{{ game.id }}')"
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-200">
+                        View Game
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        async function createGame(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            ['min_rounds', 'max_rounds', 'min_turns', 'max_turns'].forEach(field => {
+                data[field] = parseInt(data[field]);
+            });
+            
+            const response = await fetch('/admin/create_game', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                window.location.reload();
+            }
+        }
+
+        async function createInvite(gameId) {
+            const response = await fetch(`/admin/create_invite/${gameId}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const inviteUrl = `${window.location.origin}/submit/${data.invite_code}`;
+                
+                // Copy to clipboard and show feedback
+                navigator.clipboard.writeText(inviteUrl);
+                alert('Invite link copied to clipboard!\n\n' + inviteUrl);
+            }
+        }
+
+        async function startGame(gameId) {
+            if (!confirm('Are you sure you want to start the game? No more bots can be added once started.')) {
+                return;
+            }
+            
+            const response = await fetch(`/admin/start_game/${gameId}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                window.location.reload();
+            }
+        }
+
+        function viewGame(gameId) {
+            window.location.href = `/game/${gameId}`;
+        }
+    </script>
+</body>
+</html>
