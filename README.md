@@ -1,6 +1,6 @@
 # Darwin Game Platform
 
-A platform for running evolutionary game theory competitions where bots compete in a modified prisoner's dilemma game.
+A platform for running evolutionary game theory competitions where bots compete in a modified prisoner's dilemma game inspired by [The post by Zvi](https://www.lesswrong.com/s/GcZCMu7ZYHpJCh5bx/p/CnDsQAdzmDMF2LrY7)
 
 ## How It Works
 
@@ -100,7 +100,3 @@ gunicorn -w 4 'app:create_app()'
 - Bot code is sandboxed and validated
 - Limited to safe Python operations
 - No file system or network access allowed
-
-## Need Help?
-
-Check the game rules on the submission page or contact the admin for clarification about game parameters.
