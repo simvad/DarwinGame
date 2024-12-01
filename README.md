@@ -1,6 +1,6 @@
 # Darwin Game Platform
 
-A platform for running evolutionary game theory competitions where bots compete in a modified prisoner's dilemma game inspired by [The post by Zvi](https://www.lesswrong.com/s/GcZCMu7ZYHpJCh5bx/p/CnDsQAdzmDMF2LrY7)
+A platform for running evolutionary game theory competitions where bots compete in a modified prisoner's dilemma game inspired by [the post by Zvi](https://www.lesswrong.com/s/GcZCMu7ZYHpJCh5bx/p/CnDsQAdzmDMF2LrY7).
 
 ## How It Works
 
