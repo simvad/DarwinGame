@@ -93,10 +93,3 @@ gunicorn -w 4 'app:create_app()'
 ```
 
 3. Set up SSL/TLS if hosting publicly
-
-## Security Notes
-
-- Each invite link can only be used once
-- Bot code is sandboxed and validated
-- Limited to safe Python operations
-- No file system or network access allowed
