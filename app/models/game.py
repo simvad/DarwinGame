@@ -165,34 +165,44 @@ class GameManager:
         
         return True
 
-    def start_game(self, game_id: str) -> bool:
-        """Start a game if it has enough bots."""
+    def play_next_round(self, game_id: str) -> bool:
+        """Play the next round of the game."""
         game = self.get_game(game_id)
         if not game or len(game.bots) < 2:
             return False
+
+        # Initialize game state if this is the first round
+        if not game.started:
+            game.started = True
+            game.round_results = []
+            game.current_round = 0
             
-        # Update database
-        stored_game = StoredGame.query.filter_by(game_id=game_id).first()
-        if stored_game:
-            stored_game.started = True
-            db.session.commit()
+            # Update database
+            stored_game = StoredGame.query.filter_by(game_id=game_id).first()
+            if stored_game:
+                stored_game.started = True
+                db.session.commit()
+
+        # Get or initialize cumulative scores
+        cumulative_scores = defaultdict(int)
+        if game.round_results:
+            cumulative_scores.update(game.round_results[-1]['cumulative_scores'])
+
+        # Play the round
+        round_results = self._play_round(game, cumulative_scores)
         
-        game.started = True
-        threading.Thread(target=self._run_game, args=(game_id,)).start()
+        # Update cumulative scores with new round results
+        for bot, score in round_results['scores'].items():
+            cumulative_scores[bot] += score
+        
+        # Include both round scores and cumulative scores
+        round_results['cumulative_scores'] = dict(cumulative_scores)
+        game.round_results.append(round_results)
+        game.current_round += 1
+        
         return True
 
-    def _run_game(self, game_id: str):
-        """Run the game simulation."""
-        game = self.games[game_id]
-        num_rounds = random.randint(game.min_rounds, game.max_rounds)
-        
-        for round_num in range(num_rounds):
-            game.current_round = round_num
-            round_results = self._play_round(game)
-            game.round_results.append(round_results)
-            time.sleep(1)  # Add delay between rounds for visualization
-
-    def _play_round(self, game: Game) -> dict:
+    def _play_round(self, game: Game, cumulative_scores: dict) -> dict:
         """Play a single round of the game."""
         num_turns = random.randint(game.min_turns, game.max_turns)
         
@@ -200,12 +210,24 @@ class GameManager:
         for bot_info in game.bots.values():
             bot_info['runner'].reset()
             
-        # Create bot pairs
-        bot_names = list(game.bots.keys())
+        # Create weighted population pool based on cumulative scores
+        total_score = sum(cumulative_scores.values()) or len(game.bots)  # Use equal weights if no scores yet
+        population_pool = []
+        for bot_name in game.bots.keys():
+            # Calculate number of copies based on score share (minimum 1)
+            score = cumulative_scores[bot_name] or 1
+            copies = max(1, int((score / total_score) * 100))
+            population_pool.extend([bot_name] * copies)
+        
+        # Create bot pairs from weighted pool
         pairs = []
-        for _ in range(len(bot_names) * 2):  # Each bot plays multiple times
-            bot1 = random.choice(bot_names)
-            bot2 = random.choice(bot_names)  # Allow self-pairing
+        total_pairs = len(game.bots) * 2  # Keep same total number of games
+        for _ in range(total_pairs):
+            if len(population_pool) < 2:  # Replenish pool if needed
+                population_pool = [bot for bot_name in game.bots.keys()
+                                 for bot in [bot_name] * max(1, int((cumulative_scores[bot_name] or 1) / total_score * 100))]
+            bot1 = random.choice(population_pool)
+            bot2 = random.choice(population_pool)  # Allow self-pairing
             pairs.append((bot1, bot2))
             
         # Play all pairs
@@ -242,6 +264,10 @@ class GameManager:
             'scores': dict(results),
             'pairs': pair_results
         }
-game_manager = GameManager()
+game_manager = None
 
-__all__ = ['Game', 'Invite', 'GameManager', 'game_manager']
+def init_game_manager():
+    global game_manager
+    game_manager = GameManager()
+
+__all__ = ['Game', 'Invite', 'GameManager', 'game_manager', 'init_game_manager']

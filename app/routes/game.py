@@ -1,18 +1,70 @@
-from flask import Blueprint, render_template, jsonify, request, Response, session, redirect, url_for
+from flask import Blueprint, render_template, jsonify, request, Response, session, redirect, url_for, current_app
 from app.models.game import game_manager
-from app.models.database import Admin
+from app.models.database import Admin, StoredGame, db
 import json
 import time
 
 game_bp = Blueprint('game', __name__)
 
+@game_bp.route('/test/create')
+def create_test_game():
+    # Create a test game
+    game_id = game_manager.create_game(
+        title="Test Game",
+        min_rounds=3,
+        max_rounds=5,
+        min_turns=3,
+        max_turns=5,
+        admin_id=1  # Default test admin
+    )
+    
+    # Add test bots
+    test_bots = {
+        "RandomBot": """
+class Bot:
+    def get_move(self, history, opponent_history, round_number):
+        import random
+        return random.randint(1, 3)
+    
+    def reset(self):
+        pass
+""",
+        "ConstantBot": """
+class Bot:
+    def get_move(self, history, opponent_history, round_number):
+        return 2
+    
+    def reset(self):
+        pass
+"""
+    }
+    
+    # Create invites and submit bots
+    for bot_name, bot_code in test_bots.items():
+        invite_code = game_manager.create_invite(game_id)
+        game_manager.submit_bot(invite_code, bot_name, bot_code)
+    
+    return redirect(url_for('game.view_game', game_id=game_id))
+
+@game_bp.route('/test')
+def test_page():
+    return render_template('test.html')
+
 @game_bp.route('/')
 def home():
-    if 'admin_id' in session:
-        admin = Admin.query.get(session['admin_id'])
-        if admin:
-            return redirect(url_for('admin.admin'))
-    return render_template('home.html')
+    if current_app.config.get('TESTING'):
+        # In test mode, redirect to the test game
+        from app.models.game import game_manager
+        # Get first game since in test mode we only have one game
+        game_id = next(iter(game_manager.games.keys()))
+        return redirect(url_for('game.view_game', game_id=game_id))
+    else:
+        # Normal production behavior
+        if 'admin_id' in session:
+            admin = Admin.query.get(session['admin_id'])
+            if admin:
+                return redirect(url_for('admin.admin'))
+        return render_template('home.html')
 
 @game_bp.route('/submit/<invite_code>')
 def submit_page(invite_code):
@@ -74,6 +126,15 @@ def view_game(game_id):
         return "Game not found", 404
     return render_template('game.html', game=game)
 
+@game_bp.route('/game/next_round/<game_id>', methods=['POST'])
+def next_round(game_id):
+    game = game_manager.get_game(game_id)
+    if not game:
+        return jsonify({'success': False, 'error': 'Game not found'}), 404
+    
+    success = game_manager.play_next_round(game_id)
+    return jsonify({'success': success})
+
 @game_bp.route('/game/status/<game_id>')
 def game_status(game_id):
     def generate():
@@ -82,9 +143,22 @@ def game_status(game_id):
             return
             
         last_round = -1
-        while not game.started or last_round < game.current_round:
-            if game.started and last_round < game.current_round:
-                last_round = game.current_round
+        
+        # Send initial state if game has already started
+        if game.started and len(game.round_results) > 0:
+            data = {
+                'round': 0,
+                'results': game.round_results[0]
+            }
+            yield f"data: {json.dumps(data)}\n\n"
+            last_round = 0
+        else:
+            last_round = -1
+        
+        # Then enter update loop for subsequent rounds
+        while True:
+            if game.started and last_round + 1 < len(game.round_results):
+                last_round += 1
                 data = {
                     'round': last_round,
                     'results': game.round_results[last_round]

@@ -10,7 +10,7 @@ class BotValidator:
         'all', 'any', 'enumerate', 'zip', 'map', 'filter'
     }
     
-    MAX_SOURCE_LENGTH = 1000  # Allowed number of characters
+    MAX_SOURCE_LENGTH = 1500  # Allowed number of characters
     MAX_EXECUTION_TIME = 0.1  # Allowed seconds per move
     
     def __init__(self):
@@ -41,18 +41,21 @@ class BotValidator:
                 
             def visit_Import(self, node):
                 modules = [name.name for name in node.names]
-                self.found_violations.append(
-                    f"Imports are not allowed for security reasons. "
-                    f"Attempted to import: {', '.join(modules)}. "
-                    f"You can only use these built-in functions: {', '.join(sorted(BotValidator.ALLOWED_BUILTINS))}"
-                )
+                if not all(module == 'random' for module in modules):
+                    not_allowed = [m for m in modules if m != 'random']
+                    self.found_violations.append(
+                        f"Only the 'random' module is allowed for security reasons. "
+                        f"Attempted to import: {', '.join(not_allowed)}. "
+                        f"You can only use the random module and these built-in functions: {', '.join(sorted(BotValidator.ALLOWED_BUILTINS))}"
+                    )
                 
             def visit_ImportFrom(self, node):
-                self.found_violations.append(
-                    f"Import from statements are not allowed. "
-                    f"Attempted to import from module '{node.module}'. "
-                    f"You can only use these built-in functions: {', '.join(sorted(BotValidator.ALLOWED_BUILTINS))}"
-                )
+                if node.module != 'random':
+                    self.found_violations.append(
+                        f"Only imports from the 'random' module are allowed. "
+                        f"Attempted to import from module '{node.module}'. "
+                        f"You can only use the random module and these built-in functions: {', '.join(sorted(BotValidator.ALLOWED_BUILTINS))}"
+                    )
                 
             def visit_Call(self, node):
                 if isinstance(node.func, ast.Name):
@@ -126,13 +129,18 @@ class BotValidator:
             '__doc__',         # Sometimes used in class definition
             'None',            # Required for default values and comparisons
             'True',            # Required for boolean operations
-            'False'            # Required for boolean operations
+            'False',           # Required for boolean operations
+            '__import__'       # Required for importing modules
         }
         for name in required_builtins:
             safe_env['__builtins__'][name] = __builtins__[name]
         
         # Add __name__ at the module level as well
         safe_env['__name__'] = '__main__'
+        
+        # Add random module
+        import random
+        safe_env['random'] = random
         
         return safe_env
 

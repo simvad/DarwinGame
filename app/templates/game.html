@@ -9,58 +9,104 @@
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-4xl font-bold mb-8">{{ game.title }}</h1>
         
+        <!-- Game Controls -->
+        <div class="mb-8 flex items-center space-x-4">
+            <button id="nextRoundBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Next Round
+            </button>
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" id="autoRunCheckbox" class="form-checkbox h-5 w-5 text-blue-600">
+                <span class="text-gray-700">Auto Run</span>
+            </label>
+        </div>
+        
         <!-- Game Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="space-y-6 mb-8">
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-bold mb-4">Population Distribution</h2>
-                <canvas id="populationChart"></canvas>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-bold mb-4">Average Points per Round</h2>
-                <canvas id="pointsChart"></canvas>
+                <h2 class="text-2xl font-bold mb-4">Population Distribution (%)</h2>
+                <div class="h-[1200px]">
+                    <canvas id="populationChart"></canvas>
+                </div>
             </div>
         </div>
         
         <!-- Current Round -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-bold mb-4">Current Round: <span id="currentRound">0</span></h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="pairings">
-                <!-- Pairings are dynamically inserted here -->
-            </div>
-        </div>
+        <div class="text-2xl font-bold mb-4">Current Round: <span id="currentRound">0</span></div>
         
-        <!-- Hall of Fame -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold mb-4">Hall of Fame</h2>
+        <!-- Leaderboard -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Leaderboard</h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead>
                         <tr class="bg-gray-50">
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bot</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Points</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Points/Round</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Population Share</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Rank</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Bot</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Total Points</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Population Share</th>
                         </tr>
                     </thead>
-                    <tbody id="hallOfFame" class="bg-white divide-y divide-gray-200">
+                    <tbody id="leaderboard" class="divide-y divide-gray-200">
                         <!-- Rankings are dynamically inserted here -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Round Statistics -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Round Statistics</h2>
+            <div class="grid grid-cols-1 gap-4" id="pairings">
+                <!-- Pairings are dynamically inserted here -->
+                <div id="pairingStats"></div>
             </div>
         </div>
     </div>
 
     <script>
         let populationChart = null;
-        let pointsChart = null;
         const botColors = {};
         let currentRoundData = null;
 
-        // Initialize charts
+        // Initialize charts with improved styling and device pixel ratio handling
         function initializeCharts() {
+            // Get device pixel ratio
+            const dpr = window.devicePixelRatio || 1;
+            
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: dpr,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            font: {
+                                size: 12 * dpr
+                            }
+                        }
+                    },
+                    tooltip: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                },
+                elements: {
+                    line: {
+                        tension: 0.3,
+                        borderWidth: 2 * dpr
+                    },
+                    point: {
+                        radius: 0,
+                        hitRadius: 10 * dpr
+                    }
+                }
+            };
+
             const populationCtx = document.getElementById('populationChart').getContext('2d');
+            populationCtx.canvas.style.width = '100%';
+            populationCtx.canvas.style.height = '100%';
             populationChart = new Chart(populationCtx, {
                 type: 'line',
                 data: {
@@ -68,37 +114,43 @@
                     datasets: []
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    ...commonOptions,
                     scales: {
                         y: {
                             beginAtZero: true,
-                            max: 100,
+                            grace: '10%',
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)',
+                                drawBorder: false,
+                                lineWidth: dpr
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                font: {
+                                    size: 12 * dpr
+                                }
+                            },
                             title: {
                                 display: true,
-                                text: 'Population %'
+                                text: 'Population %',
+                                font: {
+                                    size: 14 * dpr,
+                                    weight: 'bold'
+                                }
                             }
-                        }
-                    }
-                }
-            });
-
-            const pointsCtx = document.getElementById('pointsChart').getContext('2d');
-            pointsChart = new Chart(pointsCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: []
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Average Points'
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 12 * dpr
+                                },
+                                maxRotation: 0,
+                                maxTicksLimit: 10
                             }
                         }
                     }
@@ -106,45 +158,51 @@
             });
         }
 
-        // Generate a consistent color for each bot
-        function getBotColor(botName) {
+        // Generate a consistent color for each bot with better spacing
+        function getBotColor(botName, index) {
             if (!botColors[botName]) {
-                // Generate a random hue, but keep saturation and lightness constant
-                const hue = Math.floor(Math.random() * 360);
+                const hue = (index * 137.5) % 360;  // Golden angle approximation
                 botColors[botName] = `hsl(${hue}, 70%, 50%)`;
             }
             return botColors[botName];
         }
 
-        // Update the pairing display
         function updatePairings(pairings) {
-            const pairingsDiv = document.getElementById('pairings');
-            pairingsDiv.innerHTML = '';
-
+            const statsDiv = document.getElementById('pairingStats');
+            statsDiv.innerHTML = '';
+            
             pairings.forEach(pair => {
-                const validClass = pair.turns[pair.turns.length - 1].valid ? 'bg-green-100' : 'bg-red-100';
+                // Calculate statistics
+                const validMoves = pair.turns.filter(t => t.valid).length;
+                const validPercentage = ((validMoves / pair.turns.length) * 100).toFixed(1);
+                const avgMove1 = (pair.turns.reduce((sum, t) => sum + t.move1, 0) / pair.turns.length).toFixed(1);
+                const avgMove2 = (pair.turns.reduce((sum, t) => sum + t.move2, 0) / pair.turns.length).toFixed(1);
+                const totalPoints1 = pair.turns.filter(t => t.valid).reduce((sum, t) => sum + t.move1, 0);
+                const totalPoints2 = pair.turns.filter(t => t.valid).reduce((sum, t) => sum + t.move2, 0);
                 
-                const pairDiv = document.createElement('div');
-                pairDiv.className = `p-4 rounded-lg ${validClass}`;
-                pairDiv.innerHTML = `
+                // Add statistics summary
+                const statsSection = document.createElement('div');
+                statsSection.className = 'mb-4 p-3 border rounded';
+                statsSection.innerHTML = `
                     <div class="font-bold mb-2">${pair.bot1} vs ${pair.bot2}</div>
-                    <div class="text-sm">
-                        Last moves: ${pair.turns[pair.turns.length - 1].move1} + 
-                        ${pair.turns[pair.turns.length - 1].move2} = 
-                        ${pair.turns[pair.turns.length - 1].move1 + pair.turns[pair.turns.length - 1].move2}
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>Valid Moves: ${validPercentage}%</div>
+                        <div>Total Turns: ${pair.turns.length}</div>
+                        <div>${pair.bot1} Avg Move: ${avgMove1}</div>
+                        <div>${pair.bot2} Avg Move: ${avgMove2}</div>
+                        <div>${pair.bot1} Points: ${totalPoints1}</div>
+                        <div>${pair.bot2} Points: ${totalPoints2}</div>
                     </div>
                 `;
-                pairingsDiv.appendChild(pairDiv);
+                statsDiv.appendChild(statsSection);
             });
         }
 
-        // Update hall of fame
-        function updateHallOfFame(scores) {
-            const tbody = document.getElementById('hallOfFame');
-            const totalPoints = Object.values(scores).reduce((a, b) => a + b, 0);
+        function updateLeaderboard(data) {
+            const tbody = document.getElementById('leaderboard');
+            const totalPoints = Object.values(data.cumulative_scores).reduce((a, b) => a + b, 0);
             
-            // Convert to array and sort by score
-            const rankings = Object.entries(scores)
+            const rankings = Object.entries(data.cumulative_scores)
                 .map(([bot, points]) => ({
                     bot,
                     points,
@@ -153,24 +211,22 @@
                 .sort((a, b) => b.points - a.points);
 
             tbody.innerHTML = rankings.map((rank, index) => `
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap">${index + 1}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${rank.bot}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${rank.points}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${(rank.points / currentRoundData.round).toFixed(1)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">${rank.share}%</td>
+                <tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-gray-100 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${index + 1}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${rank.bot}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${rank.points}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${rank.share}%</td>
                 </tr>
             `).join('');
         }
 
-        // Update charts with new data
         function updateCharts(roundNumber, scores) {
-            const totalPoints = Object.values(scores).reduce((a, b) => a + b, 0);
+            const totalPoints = Object.values(currentRoundData.results.cumulative_scores).reduce((a, b) => a + b, 0);
             
             // Update or initialize datasets
-            Object.entries(scores).forEach(([bot, points]) => {
+            Object.entries(currentRoundData.results.cumulative_scores).forEach(([bot, points], index) => {
                 const share = (points / totalPoints * 100).toFixed(1);
-                const color = getBotColor(bot);
+                const color = getBotColor(bot, index);
                 
                 // Population chart
                 let popDataset = populationChart.data.datasets.find(d => d.label === bot);
@@ -178,31 +234,19 @@
                     popDataset = {
                         label: bot,
                         borderColor: color,
-                        data: []
+                        backgroundColor: color + '20',
+                        data: [],
+                        fill: false
                     };
                     populationChart.data.datasets.push(popDataset);
                 }
                 popDataset.data.push(share);
-
-                // Points chart
-                let pointsDataset = pointsChart.data.datasets.find(d => d.label === bot);
-                if (!pointsDataset) {
-                    pointsDataset = {
-                        label: bot,
-                        borderColor: color,
-                        data: []
-                    };
-                    pointsChart.data.datasets.push(pointsDataset);
-                }
-                pointsDataset.data.push(points / (roundNumber + 1));
             });
 
-            // Update labels
-            populationChart.data.labels = Array.from({length: roundNumber + 1}, (_, i) => i);
-            pointsChart.data.labels = Array.from({length: roundNumber + 1}, (_, i) => i);
-
+            // Update labels with improved formatting
+            const labels = Array.from({length: roundNumber + 1}, (_, i) => `Round ${i}`);
+            populationChart.data.labels = labels;
             populationChart.update();
-            pointsChart.update();
         }
 
         // Set up event source for real-time updates
@@ -216,19 +260,74 @@
                 
                 document.getElementById('currentRound').textContent = data.round;
                 updatePairings(data.results.pairs);
-                updateHallOfFame(data.results.scores);
+                updateLeaderboard(data.results);
                 updateCharts(data.round, data.results.scores);
             };
 
             eventSource.onerror = function() {
                 eventSource.close();
+                console.error('EventSource connection closed');
             };
+        }
+
+        let autoRunInterval = null;
+
+        async function playNextRound(isAutoRun = false) {
+            const gameId = '{{ game.id }}';
+            const nextRoundBtn = document.getElementById('nextRoundBtn');
+            
+            if (!isAutoRun) {
+                nextRoundBtn.disabled = true;
+                nextRoundBtn.classList.add('opacity-50');
+            }
+            
+            try {
+                const response = await fetch(`/game/next_round/${gameId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    console.error('Failed to play round:', data.error);
+                    if (autoRunInterval) {
+                        clearInterval(autoRunInterval);
+                        autoRunInterval = null;
+                        document.getElementById('autoRunCheckbox').checked = false;
+                    }
+                }
+            } catch (error) {
+                console.error('Error playing round:', error);
+                if (autoRunInterval) {
+                    clearInterval(autoRunInterval);
+                    autoRunInterval = null;
+                    document.getElementById('autoRunCheckbox').checked = false;
+                }
+            } finally {
+                if (!isAutoRun) {
+                    nextRoundBtn.disabled = false;
+                    nextRoundBtn.classList.remove('opacity-50');
+                }
+            }
+        }
+
+        function toggleAutoRun(event) {
+            if (event.target.checked) {
+                autoRunInterval = setInterval(() => playNextRound(true), 2000);
+            } else if (autoRunInterval) {
+                clearInterval(autoRunInterval);
+                autoRunInterval = null;
+            }
         }
 
         // Initialize everything when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeCharts();
             setupEventSource();
+            
+            const nextRoundBtn = document.getElementById('nextRoundBtn');
+            const autoRunCheckbox = document.getElementById('autoRunCheckbox');
+            
+            nextRoundBtn.addEventListener('click', () => playNextRound(false));
+            autoRunCheckbox.addEventListener('change', toggleAutoRun);
         });
     </script>
 </body>
