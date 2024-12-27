@@ -39,6 +39,15 @@ flask create-admin [username] [password]
 python run.py
 ```
 
+5. Alternatively, run with test configuration to set up a demo environment:
+```bash
+python run.py test
+```
+This creates:
+- A test database with test admin account (username: test_admin, password: test123)
+- A sample game configured with 100 rounds and 100 turns
+- Automatically loads and submits all available test  from the test bots directory
+
 ## Running a Competition
 
 ### As Admin:
